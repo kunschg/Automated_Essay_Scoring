@@ -60,15 +60,7 @@ def train(args):
     print(f'The current processor is: {device}\n')
 
     # Model initialization
-    if args.model == 'ConvNet1D':
-        model = eval(args.model)(
-            args.input_channels, args.depth, args.kernel_size, args.max_essay_length, args.skip_connections,
-            args.batch_norm)
-    elif args.model == 'ConvNet1Dv2':
-        model = eval(args.model)(
-            args.input_channels, args.depth, args.kernel_size, args.max_essay_length, args.skip_connections,
-            args.batch_norm)
-    elif args.model == 'ConvNet1Dv3':
+    if args.model.startswith('ConvNet1D'):
         model = eval(args.model)(
             args.input_channels, args.depth, args.kernel_size, args.max_essay_length, args.skip_connections,
             args.batch_norm)
