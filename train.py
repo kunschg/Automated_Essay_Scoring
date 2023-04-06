@@ -6,7 +6,7 @@ from torch.utils.data import TensorDataset, ConcatDataset, DataLoader
 from tqdm import tqdm
 import os
 import argparse
-from models import ConvNet1D
+from models import ConvNet1D, ConvNet1Dv2, ConvNet1Dv3
 
 ############
 # Parameters
@@ -29,8 +29,9 @@ def arg_parser():
     parser.add_argument("--depth", type=int, default=0)
     parser.add_argument("--kernel-size", type=int, default=5)
     parser.add_argument('--skip-connections', action='store_true')
+    parser.add_argument('--batch-norm', action='store_true')
     parser.add_argument('--do-not-save', action='store_true')
-    parser.add_argument('--seed', type=int, default=42)
+    parser.add_argument('--seed', type=int, default=1)
     args = parser.parse_args()
     return args
 
@@ -61,12 +62,21 @@ def train(args):
     # Model initialization
     if args.model == 'ConvNet1D':
         model = eval(args.model)(
-            args.input_channels, args.depth, args.kernel_size, args.max_essay_length, args.skip_connections)
+            args.input_channels, args.depth, args.kernel_size, args.max_essay_length, args.skip_connections,
+            args.batch_norm)
+    elif args.model == 'ConvNet1Dv2':
+        model = eval(args.model)(
+            args.input_channels, args.depth, args.kernel_size, args.max_essay_length, args.skip_connections,
+            args.batch_norm)
+    elif args.model == 'ConvNet1Dv3':
+        model = eval(args.model)(
+            args.input_channels, args.depth, args.kernel_size, args.max_essay_length, args.skip_connections,
+            args.batch_norm)
     else:
         raise Exception('Invalid model')
     
     model = model.to(device)
-    model_name = f'{args.model}_{args.embedder}_depth{args.depth}_ks{args.kernel_size}'
+    model_name = f'{args.model}_{args.embedder}_depth{args.depth}_ks{args.kernel_size}_sc{args.skip_connections}_bn{args.batch_norm}_seed{args.seed}'
 
     # Optimizer set-up
     if args.optimizer == 'Adam':
@@ -88,7 +98,7 @@ def train(args):
         for essays, essay_sets, grades in tqdm(train_loader):
             essays, essay_sets, grades = essays.to(device), essay_sets.to(device), grades.to(device)
             grades_pred = model(essays, essay_sets)
-            loss = criterion(grades_pred[:,0], grades)
+            loss = criterion(grades_pred, grades)
             training_loss += loss.item()    
         training_loss = training_loss/len(train_loader)
         training_losses.append(training_loss)
@@ -97,9 +107,9 @@ def train(args):
         for essays, essay_sets, grades in tqdm(val_loader):
             essays, essay_sets, grades = essays.to(device), essay_sets.to(device), grades.to(device)
             grades_pred = model(essays, essay_sets)
-            loss = criterion(grades_pred[:,0], grades)
+            loss = criterion(grades_pred, grades)
             val_loss += loss.item()
-            val_mae += torch.mean(torch.abs(grades_pred[:,0]-grades)).item()
+            val_mae += torch.mean(torch.abs(grades_pred-grades)).item()
 
         val_loss = val_loss/len(val_loader)
         val_losses.append(val_loss)
@@ -122,7 +132,7 @@ def train(args):
         for essays, essay_sets, grades in tqdm(train_loader):
             essays, essay_sets, grades = essays.to(device), essay_sets.to(device), grades.to(device)
             grades_pred = model(essays, essay_sets)
-            loss = criterion(grades_pred[:,0], grades)
+            loss = criterion(grades_pred, grades)
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
@@ -137,9 +147,9 @@ def train(args):
             for essays, essay_sets, grades in tqdm(val_loader):
                 essays, essay_sets, grades = essays.to(device), essay_sets.to(device), grades.to(device)
                 grades_pred = model(essays, essay_sets)
-                loss = criterion(grades_pred[:,0], grades)
+                loss = criterion(grades_pred, grades)
                 val_loss += loss.item()
-                val_mae += torch.mean(torch.abs(grades_pred[:,0]-grades)).item()
+                val_mae += torch.mean(torch.abs(grades_pred-grades)).item()
         
         val_loss = val_loss/len(val_loader)
         val_losses.append(val_loss)
