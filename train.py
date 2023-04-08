@@ -6,7 +6,7 @@ from torch.utils.data import TensorDataset, ConcatDataset, DataLoader
 from tqdm import tqdm
 import os
 import argparse
-from models import ConvNet1D, ConvNet1Dv2, ConvNet1Dv3
+from models import ConvNet1D, ConvNet1Dv2, ConvNet1Dv3, TransformerModel
 
 ############
 # Parameters
@@ -14,6 +14,8 @@ from models import ConvNet1D, ConvNet1Dv2, ConvNet1Dv3
 
 def arg_parser():
     parser = argparse.ArgumentParser()
+    
+    # General training arguments
     parser.add_argument('--local-machine', action='store_true') 
     parser.add_argument("--embedder", type=str, default='w2v')
     parser.add_argument("--batch-size", type=int, default=64)
@@ -26,12 +28,21 @@ def arg_parser():
     parser.add_argument("--model", type=str, default='ConvNet1D')
     parser.add_argument("--max_essay_length", type=int, default=1266)
     parser.add_argument("--input-channels", type=int, default=50)
+    parser.add_argument('--do-not-save', action='store_true')
+    parser.add_argument('--seed', type=int, default=1)
+
+    # Arguments specific to convolutional models
     parser.add_argument("--depth", type=int, default=0)
     parser.add_argument("--kernel-size", type=int, default=5)
     parser.add_argument('--skip-connections', action='store_true')
     parser.add_argument('--batch-norm', action='store_true')
-    parser.add_argument('--do-not-save', action='store_true')
-    parser.add_argument('--seed', type=int, default=1)
+
+    # Arguments specific to transformer model
+    parser.add_argument('--num-heads', type=int, default=5)
+    parser.add_argument('--hidden-dim', type=int, default=200)
+    parser.add_argument('--num-layers', type=int, default=6)
+    parser.add_argument('--dropout', type=float, default=0.1)
+
     args = parser.parse_args()
     return args
 
@@ -64,6 +75,10 @@ def train(args):
         model = eval(args.model)(
             args.input_channels, args.depth, args.kernel_size, args.max_essay_length, args.skip_connections,
             args.batch_norm)
+    elif args.model == 'TransformerModel':
+        model = eval(args.model)(
+            args.input_channels, args.max_essay_length, args.num_heads, args.hidden_dim, args.num_layers,
+            args.dropout)
     else:
         raise Exception('Invalid model')
     
@@ -161,6 +176,8 @@ def train(args):
             if wait >= args.patience:
                 print(f'Early stopping after {epoch} epochs')
                 break
+    
+    print(f'Best validation MAE: {best_val_mae:.4f}')
 
     if not args.do_not_save:
       metrics = np.concatenate([[training_losses], [val_losses], [val_maes]], axis = 0)
