@@ -17,6 +17,7 @@ torch = "*"
 torchvision = "*"
 torchaudio = "*"
 scikit-learn = "*"
+openpyxl = "*"
 
 [dev-packages]
 
