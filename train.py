@@ -6,7 +6,10 @@ from torch.utils.data import TensorDataset, ConcatDataset, DataLoader
 from tqdm import tqdm
 import os
 import argparse
-from models import ConvNet1D, ConvNet1Dv2, ConvNet1Dv3, TransformerModel
+from models import ConvNet1D, TransformerModel, SwinTransformerModelTL
+import torchvision.models as models
+import warnings
+warnings.filterwarnings('ignore')
 
 ############
 # Parameters
@@ -37,11 +40,15 @@ def arg_parser():
     parser.add_argument('--skip-connections', action='store_true')
     parser.add_argument('--batch-norm', action='store_true')
 
-    # Arguments specific to transformer model
+    # Arguments specific to transformer models
     parser.add_argument('--num-heads', type=int, default=5)
-    parser.add_argument('--hidden-dim', type=int, default=200)
-    parser.add_argument('--num-layers', type=int, default=6)
+    parser.add_argument('--hidden-dim', type=int, default=2048)
+    parser.add_argument('--num-layers', type=int, default=1)
     parser.add_argument('--dropout', type=float, default=0.1)
+
+    # Arguments specific to transfer learning models
+    parser.add_argument('--kernel_size_tl', type=int, default=16)
+    parser.add_argument('--stride_tl', type=int, default=16)
 
     args = parser.parse_args()
     return args
@@ -75,15 +82,28 @@ def train(args):
         model = eval(args.model)(
             args.input_channels, args.depth, args.kernel_size, args.max_essay_length, args.skip_connections,
             args.batch_norm)
+        model_name = f'{args.model}_depth{args.depth}_seed{args.seed}'
+    
     elif args.model == 'TransformerModel':
         model = eval(args.model)(
             args.input_channels, args.max_essay_length, args.num_heads, args.hidden_dim, args.num_layers,
             args.dropout)
+        model_name = f'{args.model}_numlayers{args.num_layers}_seed{args.seed}'
+    
+    elif args.model.startswith('SwinTransformerModelTL'):
+        pretrained_model = models.swin_t(pretrained=True)
+        
+        for param in pretrained_model.parameters():
+            param.requires_grad = False
+        
+        model = eval(args.model)(
+            args.input_channels, args.max_essay_length, args.kernel_size_tl, args.stride_tl, pretrained_model)
+        model_name = f'{args.model}_seed{args.seed}'
+    
     else:
         raise Exception('Invalid model')
     
     model = model.to(device)
-    model_name = f'{args.model}_{args.embedder}_depth{args.depth}_ks{args.kernel_size}_sc{args.skip_connections}_bn{args.batch_norm}_seed{args.seed}'
 
     # Optimizer set-up
     if args.optimizer == 'Adam':
@@ -170,7 +190,7 @@ def train(args):
             best_val_mae = val_mae
             wait = 0
             if not args.do_not_save:
-              torch.save(model.state_dict(), 'models/' + model_name)
+              torch.save(model.state_dict(), f'models/{model_name}.pth')
         else:
             wait += 1
             if wait >= args.patience:
