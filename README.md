@@ -1,4 +1,4 @@
-# Automated_Essay_Scoring
+# Automated Essay Scoring
 
 The aim of this project is to develop a model capable of scoring essays taken from a given range of topics.
 To reproduce the results we obtained, please follow the following steps:
