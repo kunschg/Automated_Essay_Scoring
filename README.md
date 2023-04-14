@@ -5,7 +5,7 @@ To reproduce the results we obtained, please follow the following steps:
 
 1. Clone the repository.
 
-2. Go to [https://www.kaggle.com/datasets/leadbest/googlenewsvectorsnegative300](https://www.kaggle.com/datasets/leadbest/googlenewsvectorsnegative300) and download the file untitled GoogleNews-vectors-negative300.bin. Then, put it in a "data" folder located at the root of the directory.
+2. Go to [https://www.kaggle.com/datasets/leadbest/googlenewsvectorsnegative300](https://www.kaggle.com/datasets/leadbest/googlenewsvectorsnegative300) and download the file entitled GoogleNews-vectors-negative300.bin. Then, put it in a "data" folder located at the root of the directory.
 
 3. Run [data_preprocessing.ipynb](data_preprocessing.ipynb) to generate the relevant datasets.
 
