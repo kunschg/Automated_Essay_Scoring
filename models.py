@@ -202,3 +202,43 @@ class SwinTransformerModelTL(nn.Module):
         x = torch.sigmoid(self.pretrained_model(x)).view(-1)
 
         return x
+
+
+#########################
+# LSTM model
+#########################
+
+
+class LSTMModel(nn.Module):
+    def __init__(
+        self,
+        input_channels,
+        max_essay_length,
+        input_size,
+        hidden_size,
+        num_layers,
+        bidirectional,
+        batch_first,
+    ):
+        super().__init__()
+
+        self.input_channels = input_channels
+        self.max_essay_length = max_essay_length
+        self.input_size = input_size
+        self.hidden_size = hidden_size
+        self.num_layers = num_layers
+        self.bidirectional = bidirectional
+        self.batch_first = batch_first
+        self.rnn = nn.LSTM(
+            input_size=input_size,  # should be 50
+            hidden_size=hidden_size,  # should be 1
+            num_layers=num_layers,  # should be 2
+            bidirectional=bidirectional,  # should be 2
+            bidirectional=bidirectional,  # should be True
+        )
+
+    def forward(self, essays, essay_sets):
+        # essay_sets not used but for coherence with others models, it is kept in the parameters
+        input = torch.permute(essays, (0, 2, 1))
+        output, (hn, cn) = self.rnn(input)
+        return output, (hn, cn)
