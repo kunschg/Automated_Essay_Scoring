@@ -10,7 +10,7 @@ import torchvision.models as models
 from torch.utils.data import ConcatDataset, DataLoader, TensorDataset
 from tqdm import tqdm
 
-from models import ConvNet1D, SwinTransformerModelTL, TransformerModel
+from models import LSTM, ConvNet1D, SwinTransformerModelTL, TransformerModel
 
 warnings.filterwarnings("ignore")
 
@@ -25,7 +25,7 @@ def arg_parser():
     # General training arguments
     parser.add_argument("--local-machine", default=True, action="store_true")
     parser.add_argument("--embedder", type=str, default="w2v")
-    parser.add_argument("--batch-size", type=int, default=64)
+    parser.add_argument("--batch_size", type=int, default=64)
     parser.add_argument("--optimizer", type=str, default="Adam")
     parser.add_argument("--l-rate", type=float, default=1e-3)
     parser.add_argument("--momentum", type=float, default=0.0)
@@ -54,6 +54,11 @@ def arg_parser():
     parser.add_argument("--kernel_size_tl", type=int, default=16)
     parser.add_argument("--stride_tl", type=int, default=16)
 
+    # Arguments specific to transfer learning models
+    parser.add_argument("--hidden_size", type=int, default=1)
+    parser.add_argument("--num_layers", type=int, default=2)
+    parser.add_argument("--bidirectional", type=bool, default=True)
+    parser.add_argument("--batch_first", type=bool, default=True)
     args = parser.parse_args()
     return args
 
@@ -83,7 +88,7 @@ def train(args):
     # Device set-up
     if torch.cuda.is_available():
         device_var = "cuda:0"
-    elif torch.backends.mps.is_available():
+    elif torch.backends.mps.is_available() and args.model != "LSTM":
         device_var = torch.device("mps")
     else:
         device_var = "cpu"
@@ -127,6 +132,18 @@ def train(args):
             pretrained_model,
         )
         model_name = f"{args.model}_seed{args.seed}"
+
+    elif args.model == "LSTM":
+        model = eval(args.model)(
+            args.batch_size,
+            args.input_channels,
+            args.max_essay_length,
+            args.hidden_size,
+            args.num_layers,
+            args.bidirectional,
+            args.batch_first,
+        )
+        model_name = f"{args.model}_numlayers{args.num_layers}_seed{args.seed}"
 
     else:
         raise Exception("Invalid model")

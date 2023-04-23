@@ -209,12 +209,12 @@ class SwinTransformerModelTL(nn.Module):
 #########################
 
 
-class LSTMModel(nn.Module):
+class LSTM(nn.Module):
     def __init__(
         self,
+        batch_size,
         input_channels,
         max_essay_length,
-        input_size,
         hidden_size,
         num_layers,
         bidirectional,
@@ -222,23 +222,52 @@ class LSTMModel(nn.Module):
     ):
         super().__init__()
 
+        self.batch_size = batch_size
         self.input_channels = input_channels
         self.max_essay_length = max_essay_length
-        self.input_size = input_size
         self.hidden_size = hidden_size
         self.num_layers = num_layers
         self.bidirectional = bidirectional
         self.batch_first = batch_first
-        self.rnn = nn.LSTM(
-            input_size=input_size,  # should be 50
-            hidden_size=hidden_size,  # should be 1
-            num_layers=num_layers,  # should be 2
-            bidirectional=bidirectional,  # should be 2
-            bidirectional=bidirectional,  # should be True
+        self.lstm = nn.LSTM(
+            input_size=input_channels,  # should be 50
+            hidden_size=hidden_size,
+            num_layers=num_layers,
+            bidirectional=bidirectional,
+            batch_first=batch_first,  # should be True
         )
+        self.fc_emb = nn.Linear(8, self.max_essay_length)
+        self.fc_final = nn.LazyLinear(1)
 
     def forward(self, essays, essay_sets):
-        # essay_sets not used but for coherence with others models, it is kept in the parameters
-        input = torch.permute(essays, (0, 2, 1))
-        output, (hn, cn) = self.rnn(input)
-        return output, (hn, cn)
+        x1 = essays
+        x2 = (
+            F.one_hot(essay_sets - 1, num_classes=8)
+            .view(essay_sets.shape[0], 1, 8)
+            .float()
+        )
+        x2 = F.relu(self.fc_emb(x2))
+
+        # concatenate
+        x = x1 + x2
+        # prepare for lstm
+        x = torch.permute(x, (0, 2, 1))
+
+        x, (hn, cn) = self.lstm(x)
+
+        if self.bidirectional:
+            factor_reshape = 2
+        else:
+            factor_reshape = 1
+
+        x = torch.reshape(
+            x,
+            (
+                x.shape[0],
+                self.max_essay_length * self.hidden_size * factor_reshape,
+            ),
+        )
+        x = self.fc_final(x)
+        x = torch.sigmoid(x)
+        x = x.view(x.shape[0])
+        return x
